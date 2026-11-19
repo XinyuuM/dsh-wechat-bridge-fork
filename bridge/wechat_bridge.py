@@ -70,6 +70,8 @@ ONLY_CHATS = []
 SEND_ENABLED = True
 SKIP_OLDER = 15.0
 POLL_SEC = 2.0
+# fork：出站循环心跳（看门狗用）——主循环每轮刷新，卡死时冻结
+出站心跳 = time.time()
 # 群里只有被点名才转（正文里带这些词之一）。私聊不受这个限制。
 ALIASES = []
 DEFAULT_ALIASES = "大肥鱼,鲸鲸,鲸鱼娘,鲸鱼,肥鱼"
@@ -1730,7 +1732,24 @@ def main():
         return {'seq': seq_a, 'text': txt_a}
 
     def outbox_loop():
+        global 出站心跳
         log("出站轮询已启动（每 %.0f 秒）" % POLL_SEC)
+        出站心跳 = time.time()
+
+        # fork：看门狗 —— 主循环若卡死（无超时的 HTTP/DB/UIA 调用）导致心跳冻结
+        # 超过 180 秒，自杀退出（code 72），宿主会识别并自动重启桥接
+        def _看门狗():
+            while True:
+                time.sleep(30)
+                try:
+                    停滞 = time.time() - 出站心跳
+                    if 停滞 > 180:
+                        log("看门狗：出站循环 %.0f 秒无心跳，疑似卡死，自杀重启桥接" % 停滞)
+                        time.sleep(1)
+                        os._exit(72)
+                except Exception:
+                    pass
+        threading.Thread(target=_看门狗, daemon=True).start()
 
         # 预热：第一次 get_gui()/取 UIA 引擎会把微信窗口短暂恢复一下（要建控件树），
         # 放在这里提前建好，免得真发消息时才闪那一下。
@@ -1744,6 +1763,7 @@ def main():
 
         threading.Thread(target=_预热, daemon=True).start()
         while True:
+            出站心跳 = time.time()
             time.sleep(POLL_SEC)
             if not SEND_ENABLED:
                 continue
