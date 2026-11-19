@@ -262,6 +262,7 @@ def main():
     # ---------- 群回复频率 ----------
 
     chat_hits = {}      # 群名 -> [时间戳]
+    最后触发 = {}       # fork：群名 -> 最近一次被点名/主人说话的时刻（监听窗口用）
 
     def 频率允许(chat):
         gap = CFG.get("群回复间隔秒") or 0
@@ -2168,17 +2169,23 @@ def main():
             if is_group and CFG["日记"]:
                 diary_append(chat, create_time, nickname or "某人", content)
 
-            # 群里：点名 / 主人说话 / 活跃群 才进 DSH（不然每个群都在刷屏）
+            # 群里：点名 / 主人说话 / 活跃群 / 点名后监听窗口 才进 DSH（不然每个群都在刷屏）
             at_me = False
             if is_group:
                 at_me = any(a in raw for a in ALIASES)
+                # fork：点名后监听窗口 —— 被点名/主人说话后 60 秒内，同群的后续消息
+                # 也算对话延续（频率闸照常生效，模型可用 [不回] 装死）
+                窗口内 = (time.time() - 最后触发.get(chat, 0)) < 60
                 called = (
                     at_me
                     or is_master(sender, nickname)
                     or chat in CFG.get("活跃群", [])
+                    or 窗口内
                 )
                 if not called:
                     return
+                if at_me or is_master(sender, nickname):
+                    最后触发[chat] = time.time()
                 # 主人说话和点名都必进，只有普通群友的闲聊才吃频率闸
                 if not at_me and not is_master(sender, nickname) and not 频率允许(chat):
                     return
