@@ -1885,7 +1885,12 @@ def main():
             if 媒体["下载器"] is None:
                 from wechatauto.media import MediaDownloader
 
-                媒体["下载器"] = MediaDownloader(db)
+                try:
+                    # fork：限制图片密钥扫描时长，防止收到图片时桥接卡死几分钟
+                    媒体["下载器"] = MediaDownloader(db, image_key_scan_timeout=20)
+                except TypeError:
+                    # 旧版库没有这个参数
+                    媒体["下载器"] = MediaDownloader(db)
             folder = os.path.join(INBOUND_DIR, "images")
             os.makedirs(folder, exist_ok=True)
             local_id = int(msg.get("local_id") or 0)
