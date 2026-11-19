@@ -959,9 +959,21 @@ def main():
         return False
 
     def 拆条(text: str, 上限: int = 26):
-        """把一段话拆成几条短消息：先按换行分段，长段再按句子拆。"""
+        """把一段话拆成几条短消息：先按换行分段，长段再按句子拆。
+
+        fork：URL 先摘出来保护 —— 链接里的 ?（查询串）会被句末拆分误判成
+        「？」切出两条半截消息（实测 music.163.com/song?id=xxx 必现）。
+        """
         out = []
-        for 段 in re.split(r"\n+", str(text or "")):
+        原文 = str(text or "")
+        链接们 = []
+
+        def _藏链接(m):
+            链接们.append(m.group(0))
+            return "\x01%d\x02" % (len(链接们) - 1)
+
+        原文 = re.sub(r"https?://[^\s（）()【】\[\]「」『』、，。！？…；;：\"'<>（）]+", _藏链接, 原文)
+        for 段 in re.split(r"\n+", 原文):
             段 = 段.strip()
             if not 段:
                 continue
@@ -981,7 +993,12 @@ def main():
                     cur = 句
             if cur.strip():
                 out.append(cur.strip())
-        return out or [str(text or "").strip()]
+
+        def _还链接(s):
+            return re.sub(r"\x01(\d+)\x02", lambda m: 链接们[int(m.group(1))] if int(m.group(1)) < len(链接们) else m.group(0), s)
+
+        out = [_还链接(段) for 段 in out]
+        return out or [_还链接(原文.strip())]
 
 
     def _chat_username(chat):
