@@ -1323,7 +1323,7 @@ def main():
                 return ""
             return m.group(0)
 
-        text = re.sub(r"\[表情:\s*([^\]]+)\]", _repl, text).strip()
+        text = re.sub(r"\[表情[:：]\s*([^\]]+)\]", _repl, text).strip()
         images = 表情图 + images
 
         # 兜底：DSH 那边没摘干净的 markdown 图片（只认本机地址），这里再摘一次，
@@ -1770,7 +1770,7 @@ def main():
                     try:
                         捞2 = 兜底捞回复()
                         if 捞2:
-                            待比2 = re.sub(r"\[表情:\s*[^\]]+\]", "", 捞2["text"]).strip()
+                            待比2 = re.sub(r"\[表情[:：]\s*[^\]]+\]", "", 捞2["text"]).strip()
                             if 待比2 and _already_sent(待比2, LAST_CHAT.get("chat") or "", within=180):
                                 _写兜底游标(捞2["seq"])
                                 log("兜底游标跟主通道同步：seq=%s" % 捞2["seq"])
@@ -1793,7 +1793,7 @@ def main():
                         if 聊天:
                             log("兜底：会话事件没送到，直接捞到一句回复（seq=%s）" % 捞["seq"])
                             # 兜底只补「主通道真没送到」的：已经发过的绝不能再发一遍（会重复两遍文字+图）
-                            待比 = re.sub(r"\[表情:\s*[^\]]+\]", "", 捞["text"]).strip()
+                            待比 = re.sub(r"\[表情[:：]\s*[^\]]+\]", "", 捞["text"]).strip()
                             已发过 = False
                             try:
                                 if 待比:
